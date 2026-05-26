@@ -947,7 +947,7 @@
       elements.setupHomeBtn.addEventListener('click', () => { window.location.href = 'home.html'; });
       elements.setupTheoryBtn.addEventListener('click', () => { window.location.href = 'theory.html'; });
       elements.backToSetupBtn.addEventListener('click', () => { stopSimulation(); showScreen('setup'); });
-      elements.newMazeBtn.addEventListener('click', () => { stopSimulation(); showScreen('setup'); });
+      elements.newMazeBtn.addEventListener('click', () => { closeWinModal(); clearAndGenerate(); });
       elements.backTheoryFromGame.addEventListener('click', () => { window.location.href = 'theory.html'; });
       elements.generateMazeBtn.addEventListener('click', () => { showScreen('game'); clearAndGenerate(); });
       elements.startSimBtn.addEventListener('click', startSimulation);
