@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graph Scape - Laberintos de Grafos y Algoritmos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Orbitron:wght@500;700;900&family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['Fira Code', 'monospace'],
+            orbitron: ['Orbitron', 'sans-serif'],
+          },
+          colors: {
+            darkBg: '#07111f',
+            cardBg: '#0f172a',
+            neonGreen: '#10b981',
+            neonBlue: '#06b6d4',
+            neonPurple: '#8b5cf6',
+            neonGold: '#f59e0b'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { margin: 0; min-height: 100%; background: #07111f; color: #ecf4ff; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(6, 182, 212, 0.14), transparent 26%),
+        radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.12), transparent 22%),
+        radial-gradient(circle at 55% 90%, rgba(16, 185, 129, 0.1), transparent 18%),
+        linear-gradient(160deg, #050b14 0%, #081220 55%, #0b1526 100%);
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .glass {
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(8, 15, 28, 0.82));
+      border: 1px solid rgba(154, 205, 255, 0.14);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(18px);
+    }
+    .neon-title {
+      text-shadow: 0 0 18px rgba(6, 182, 212, 0.34), 0 0 40px rgba(139, 92, 246, 0.18);
+    }
+    .node-dot { box-shadow: 0 0 10px rgba(255,255,255,0.16); }
+    .scroll-shadow { box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
+    .maze-canvas-wrap {
+      background:
+        radial-gradient(circle at 20% 20%, rgba(6, 182, 212, 0.07), transparent 32%),
+        linear-gradient(180deg, rgba(4, 10, 18, 0.96), rgba(2, 6, 14, 0.98));
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 22px;
+      overflow: hidden;
+    }
+    .maze-canvas {
+      display: block;
+      width: 100%;
+      height: min(68vh, 720px);
+    }
+    @media (max-width: 640px) {
+      .maze-canvas {
+        height: min(30vh, 260px);
+      }
+      main {
+        padding: 0.5rem !important;
+      }
+      #screen-game > header {
+        padding: 0.75rem !important;
+        margin-bottom: 0.5rem !important;
+        gap: 0.5rem !important;
+      }
+      #screen-game > div {
+        gap: 0.75rem !important;
+      }
+      #screen-game .glass {
+        padding: 0.75rem !important;
+      }
+      #screen-game .maze-canvas-wrap {
+        padding: 0.5rem !important;
+      }
+      #screen-game .mt-4.grid.grid-cols-1.sm\:grid-cols-3.gap-2 {
+        margin-top: 0.75rem !important;
+      }
+      #screen-game .mt-4.md\:hidden {
+        margin-top: 0.75rem !important;
+      }
+      #screen-game .mt-4.flex.flex-wrap.justify-center.gap-2 {
+        margin-top: 0.75rem !important;
+      }
+      #screen-game .touch-move-btn,
+      #screen-game button[id$="Btn"],
+      #screen-game button[id="togglePlayerBtn"] {
+        min-height: 40px;
+      }
+    }
+    .status-chip { border: 1px solid rgba(148, 163, 184, 0.15); background: rgba(2, 6, 23, 0.44); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; }
+    .legend-dot.start { background: #10b981; }
+    .legend-dot.goal { background: #06b6d4; }
+    .legend-dot.current { background: #67d1ff; }
+    .legend-dot.visited { background: #8b5cf6; }
+    .legend-dot.path { background: #f59e0b; }
+    .console-line { white-space: pre-wrap; }
+    @keyframes pulseGoal { 0%, 100% { box-shadow: 0 0 0 rgba(6, 182, 212, 0); } 50% { box-shadow: 0 0 18px rgba(6, 182, 212, 0.35); } }
+    @keyframes floatNode { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-4px); } }
+    .float-node { animation: floatNode 4s ease-in-out infinite; }
+  </style>
+</head>
+<body>
+  <canvas id="bg-canvas" class="fixed inset-0 pointer-events-none z-0 opacity-40"></canvas>
+
+  <main class="relative z-10 min-h-screen px-4 py-4 sm:py-6">
+      <div class="max-w-[1600px] mx-auto">
+        <section id="screen-setup" class="screen active">
+          <header class="glass rounded-3xl px-5 py-4 mb-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <button id="setupHomeBtn" class="w-10 h-10 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 transition flex items-center justify-center"><i class="fa-solid fa-house"></i></button>
+              <div>
+                <h2 class="font-orbitron text-2xl sm:text-3xl font-black uppercase bg-gradient-to-r from-neonBlue to-neonPurple bg-clip-text text-transparent">Graph Scape</h2>
+                <p class="text-xs text-slate-500 font-mono tracking-wider">Configura antes de entrar al laberinto</p>
+              </div>
+            </div>
+            <button id="setupTheoryBtn" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 font-orbitron text-xs tracking-widest"><i class="fa-solid fa-graduation-cap mr-2"></i>Teoría</button>
+          </header>
+
+          <section class="glass rounded-3xl p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+            <div>
+              <p class="font-mono tracking-[0.25em] text-neonBlue uppercase text-xs mb-3">Pantalla de configuración</p>
+              <h3 class="font-orbitron text-3xl sm:text-4xl font-black uppercase bg-gradient-to-r from-neonBlue via-neonPurple to-neonGreen bg-clip-text text-transparent neon-title">Prepara el laberinto</h3>
+              <p class="mt-5 text-slate-300 text-lg leading-relaxed max-w-2xl">Primero eliges el tamaño y la dificultad. Cuando pulses generar, pasas a la siguiente pantalla, donde solo estará el laberinto y tus estadísticas. Ahí intentas resolverlo tú mismo antes de usar la simulación.</p>
+              <div class="mt-6 flex flex-wrap gap-2 text-xs font-mono text-slate-500">
+                <span class="px-3 py-1 rounded-full bg-slate-900 border border-slate-800">Pantalla 1: configuración</span>
+                <span class="px-3 py-1 rounded-full bg-slate-900 border border-slate-800">Pantalla 2: juego</span>
+                <span class="px-3 py-1 rounded-full bg-slate-900 border border-slate-800">Ayuda opcional: simulación</span>
+              </div>
+            </div>
+
+            <div class="glass rounded-3xl p-5 border border-slate-800/70">
+              <h3 class="font-orbitron text-lg font-bold border-b border-slate-800 pb-3 mb-4 text-neonBlue"><i class="fa-solid fa-sliders mr-2"></i>Controles</h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="block font-mono text-xs text-slate-400 mb-2 uppercase tracking-wide">Dificultad / tamaño</label>
+                  <div class="grid grid-cols-3 gap-2">
+                    <button data-size="9" class="size-btn py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-sm font-mono">Fácil</button>
+                    <button data-size="13" class="size-btn py-2 rounded-lg bg-neonBlue/20 border border-neonBlue/40 text-neonBlue text-sm font-mono font-semibold">Media</button>
+                    <button data-size="17" class="size-btn py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-sm font-mono">Difícil</button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block font-mono text-xs text-slate-400 mb-2 uppercase tracking-wide">Algoritmo de ayuda</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button id="modeManualBtn" class="mode-btn py-2 rounded-lg bg-neonGreen/20 border border-neonGreen/40 text-neonGreen font-semibold text-xs font-orbitron tracking-wide uppercase">Jugador</button>
+                    <button id="modeAlgoBtn" class="mode-btn py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-orbitron tracking-wide uppercase">Simulación</button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block font-mono text-xs text-slate-400 mb-2 uppercase tracking-wide" for="algorithmSelect">Algoritmo</label>
+                  <select id="algorithmSelect" class="w-full bg-slate-950 border border-slate-800 px-3 py-3 rounded-xl font-mono text-sm">
+                    <option value="bfs">BFS - Búsqueda en Amplitud</option>
+                    <option value="dfs">DFS - Búsqueda en Profundidad</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div class="flex justify-between items-center mb-2">
+                    <label class="font-mono text-xs text-slate-400 uppercase tracking-wide" for="speedSlider">Velocidad de ayuda</label>
+                    <span id="speedValue" class="font-mono text-xs text-neonPurple">300ms</span>
+                  </div>
+                  <input id="speedSlider" type="range" min="100" max="1000" step="50" value="300" class="w-full accent-neonPurple">
+                </div>
+              </div>
+
+              <div class="mt-6 flex flex-col gap-3">
+                <button id="generateMazeBtn" class="w-full py-3 rounded-xl bg-neonBlue text-slate-950 font-orbitron font-bold text-sm tracking-wider flex items-center justify-center gap-2"><i class="fa-solid fa-dice"></i> Generar Laberinto</button>
+                <p class="text-xs text-slate-500 font-mono">Al generar, pasarás al tablero para resolverlo manualmente.</p>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section id="screen-game" class="screen">
+          <header class="glass rounded-3xl px-5 py-4 mb-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <button id="backToSetupBtn" class="w-10 h-10 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 transition flex items-center justify-center"><i class="fa-solid fa-arrow-left"></i></button>
+              <div>
+                <h2 class="font-orbitron text-2xl sm:text-3xl font-black uppercase bg-gradient-to-r from-neonBlue to-neonPurple bg-clip-text text-transparent">Graph Scape Sim</h2>
+                <p class="text-xs text-slate-500 font-mono tracking-wider">Resuelve primero tú; la simulación es una ayuda opcional</p>
+              </div>
+            </div>
+            <div class="status-chip rounded-2xl px-4 py-2 flex items-center gap-3">
+              <span id="modeIndicatorDot" class="w-3.5 h-3.5 rounded-full bg-neonGreen animate-pulse"></span>
+              <span id="modeIndicator" class="font-mono text-sm uppercase tracking-wider text-slate-200">Modo Jugador</span>
+            </div>
+            <button id="backTheoryFromGame" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 font-orbitron text-xs tracking-widest"><i class="fa-solid fa-graduation-cap mr-2"></i>Teoría en vivo</button>
+          </header>
+
+          <div class="grid grid-cols-1 gap-4 items-stretch xl:grid-cols-12">
+            <section class="xl:col-span-8 glass rounded-3xl p-4 flex flex-col">
+              <div class="flex items-center justify-between gap-3 pb-3 border-b border-slate-800 mb-3">
+                <div>
+                  <h3 class="font-orbitron text-lg font-bold">Visor de Grafo / Laberinto</h3>
+                  <p id="mazeMeta" class="text-xs text-slate-500 font-mono mt-1">Genera un laberinto para comenzar.</p>
+                </div>
+                <div class="flex flex-wrap gap-3 text-xs font-mono text-slate-400">
+                  <span class="flex items-center gap-2"><i class="legend-dot start"></i> Inicio</span>
+                  <span class="flex items-center gap-2"><i class="legend-dot goal"></i> Meta</span>
+                  <span class="flex items-center gap-2"><i class="legend-dot current"></i> Actual / Cola</span>
+                  <span class="flex items-center gap-2"><i class="legend-dot visited"></i> Visitado</span>
+                  <span class="flex items-center gap-2"><i class="legend-dot path"></i> Ruta óptima</span>
+                </div>
+              </div>
+              <div class="flex-1 overflow-hidden maze-canvas-wrap p-3 sm:p-4">
+                <canvas id="mazeCanvas" class="maze-canvas" aria-label="Visualización del laberinto"></canvas>
+              </div>
+              <div class="mt-4 md:hidden">
+                <p class="text-center font-mono text-xs text-slate-500 mb-3">Controles táctiles para mover al jugador</p>
+                <div class="grid grid-cols-3 gap-2 w-56 max-w-full mx-auto">
+                  <div></div>
+                  <button data-move="up" class="touch-move-btn py-3 rounded-xl bg-slate-900 border border-slate-700 font-orbitron text-xs font-bold">↑</button>
+                  <div></div>
+                  <button data-move="left" class="touch-move-btn py-3 rounded-xl bg-slate-900 border border-slate-700 font-orbitron text-xs font-bold">←</button>
+                  <div class="py-3 rounded-xl border border-slate-800 bg-slate-950/70 text-center text-[10px] uppercase tracking-[0.25em] text-slate-500 font-orbitron">Toca</div>
+                  <button data-move="right" class="touch-move-btn py-3 rounded-xl bg-slate-900 border border-slate-700 font-orbitron text-xs font-bold">→</button>
+                  <div></div>
+                  <button data-move="down" class="touch-move-btn py-3 rounded-xl bg-slate-900 border border-slate-700 font-orbitron text-xs font-bold">↓</button>
+                  <div></div>
+                </div>
+              </div>
+              <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <button id="newMazeBtn" class="py-3 rounded-xl bg-neonGreen text-slate-950 font-orbitron font-bold text-xs tracking-wider flex items-center justify-center gap-1.5"><i class="fa-solid fa-dice"></i> Nuevo laberinto</button>
+                <button id="startSimBtn" class="py-3 rounded-xl bg-neonBlue text-slate-950 font-orbitron font-bold text-xs tracking-wider flex items-center justify-center gap-1.5"><i class="fa-solid fa-play"></i> Simulación</button>
+                <button id="pauseSimBtn" class="py-3 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 font-orbitron font-bold text-xs tracking-wider flex items-center justify-center gap-1.5"><i class="fa-solid fa-pause"></i> Pausar</button>
+              </div>
+              <div class="mt-4 flex flex-wrap justify-center gap-2 text-xs font-mono text-slate-500">
+                <span class="px-3 py-1 rounded-full bg-slate-900 border border-slate-800">Flechas o botones: mover jugador</span>
+                <span class="px-3 py-1 rounded-full bg-slate-900 border border-slate-800">Espacio: siguiente paso</span>
+                <span class="px-3 py-1 rounded-full bg-slate-900 border border-slate-800">BFS = ruta más corta</span>
+                <span class="px-3 py-1 rounded-full bg-slate-900 border border-slate-800">DFS = exploración profunda</span>
+              </div>
+            </section>
+
+            <aside class="xl:col-span-4 flex flex-col gap-4">
+              <section class="glass rounded-3xl p-5 flex flex-col gap-5">
+                <div>
+                  <h3 class="font-orbitron text-lg font-bold border-b border-slate-800 pb-3 mb-4 text-neonPurple"><i class="fa-solid fa-chart-simple mr-2"></i>Estadísticas</h3>
+                  <div class="space-y-3">
+                    <div class="bg-slate-950/60 border border-slate-800 p-3.5 rounded-2xl flex justify-between items-center"><div><span class="font-orbitron text-xs text-neonGreen uppercase tracking-wider block">Jugador</span><span class="text-xs text-slate-500 block">Movimientos y tiempo</span></div><div class="text-right"><span id="playerMoves" class="font-mono text-xl font-bold text-neonGreen">0</span><span class="text-xs text-slate-500 block">Movs.</span></div></div>
+                    <div class="bg-slate-950/60 border border-slate-800 p-3.5 rounded-2xl flex justify-between items-center"><div><span class="font-orbitron text-xs text-neonBlue uppercase tracking-wider block">BFS</span><span class="text-xs text-slate-500 block">Nodos explorados</span></div><div class="text-right"><span id="bfsExplored" class="font-mono text-xl font-bold text-neonBlue">-</span><span class="text-xs text-slate-500 block">Explorados</span></div></div>
+                    <div class="bg-slate-950/60 border border-slate-800 p-3.5 rounded-2xl flex justify-between items-center"><div><span class="font-orbitron text-xs text-neonPurple uppercase tracking-wider block">DFS</span><span class="text-xs text-slate-500 block">Nodos explorados</span></div><div class="text-right"><span id="dfsExplored" class="font-mono text-xl font-bold text-neonPurple">-</span><span class="text-xs text-slate-500 block">Explorados</span></div></div>
+                  </div>
+                </div>
+
+                <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                  <span class="font-mono text-xs text-slate-400 uppercase tracking-wide block mb-2">Comparativa de rutas</span>
+                  <div class="space-y-2 text-xs font-mono text-slate-300">
+                     <div class="flex justify-between"><span>Tu ruta</span><span id="routePlayer" class="text-orange-400 font-semibold">-</span></div>
+                     <div class="flex justify-between"><span>Óptima</span><span id="routeOptimal" class="text-rose-400 font-semibold">-</span></div>
+                    <div class="flex justify-between"><span>BFS</span><span id="routeBfs" class="text-sky-400">-</span></div>
+                    <div class="flex justify-between"><span>DFS</span><span id="routeDfs" class="text-neonPurple">-</span></div>
+                  </div>
+                </div>
+
+                <button id="togglePlayerBtn" class="w-full py-3 rounded-xl bg-gradient-to-r from-neonGreen to-neonBlue text-slate-950 font-orbitron font-bold text-sm tracking-wider">Modo Manual / Simulación</button>
+              </section>
+
+              <section class="glass rounded-3xl p-5 flex flex-col gap-5">
+                <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 flex-1 min-h-[210px]">
+                  <div class="flex items-center justify-between border-b border-slate-900 pb-2 mb-2">
+                    <span class="font-mono text-xs text-slate-400 uppercase tracking-wide"><i class="fa-solid fa-terminal mr-1"></i> Consola del algoritmo</span>
+                    <button id="clearConsoleBtn" class="text-xs text-slate-500 hover:text-slate-300 font-mono">Limpiar</button>
+                  </div>
+                  <div id="console" class="h-[150px] overflow-y-auto pr-2 font-mono text-xs space-y-1.5 text-slate-300"></div>
+                </div>
+
+                <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                  <div class="flex items-center justify-between border-b border-slate-900 pb-2 mb-2">
+                    <span class="font-mono text-xs text-slate-400 uppercase tracking-wide"><i class="fa-solid fa-microchip mr-1"></i> Cola / Pila en vivo</span>
+                    <span id="structureCount" class="text-xs font-mono text-slate-500">Vacío</span>
+                  </div>
+                  <div id="structureVisual" class="h-[118px] overflow-x-auto flex items-center gap-2 pr-1"></div>
+                </div>
+              </section>
+            </aside>
+          </div>
+        </section>
+      </div>
+  </main>
+
+  <div id="winModal" class="hidden fixed inset-0 z-50 bg-darkBg/80 backdrop-blur-md flex items-center justify-center px-4">
+    <div class="glass rounded-3xl max-w-md w-full p-8 text-center border border-slate-800">
+      <div class="w-16 h-16 rounded-full bg-neonGold/10 border border-neonGold/20 flex items-center justify-center mx-auto mb-5"><i class="fa-solid fa-trophy text-3xl text-neonGold"></i></div>
+      <h3 class="font-orbitron text-2xl font-bold mb-2">¡Laberinto Resuelto!</h3>
+      <p id="winModalDesc" class="text-slate-400 text-sm leading-relaxed mb-6">Has encontrado la salida.</p>
+      <div class="flex gap-3">
+        <button id="closeWinModalBtn" class="flex-1 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 font-orbitron text-sm font-bold">Cerrar</button>
+        <button id="retryWinModalBtn" class="flex-1 py-3 rounded-xl bg-neonBlue text-slate-950 hover:brightness-110 font-orbitron text-sm font-bold">Jugar otra vez</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+    const elements = {
+      setupScreen: document.getElementById('screen-setup'),
+      gameScreen: document.getElementById('screen-game'),
+      setupHomeBtn: document.getElementById('setupHomeBtn'),
+      setupTheoryBtn: document.getElementById('setupTheoryBtn'),
+      backToSetupBtn: document.getElementById('backToSetupBtn'),
+      newMazeBtn: document.getElementById('newMazeBtn'),
+      backTheoryFromGame: document.getElementById('backTheoryFromGame'),
+      mazeCanvas: document.getElementById('mazeCanvas'),
+      mazeMeta: document.getElementById('mazeMeta'),
+      modeIndicator: document.getElementById('modeIndicator'),
+      modeIndicatorDot: document.getElementById('modeIndicatorDot'),
+      speedSlider: document.getElementById('speedSlider'),
+      speedValue: document.getElementById('speedValue'),
+      algorithmSelect: document.getElementById('algorithmSelect'),
+      generateMazeBtn: document.getElementById('generateMazeBtn'),
+      startSimBtn: document.getElementById('startSimBtn'),
+      pauseSimBtn: document.getElementById('pauseSimBtn'),
+      togglePlayerBtn: document.getElementById('togglePlayerBtn'),
+      modeManualBtn: document.getElementById('modeManualBtn'),
+      modeAlgoBtn: document.getElementById('modeAlgoBtn'),
+      clearConsoleBtn: document.getElementById('clearConsoleBtn'),
+      console: document.getElementById('console'),
+      structureVisual: document.getElementById('structureVisual'),
+      structureCount: document.getElementById('structureCount'),
+      playerMoves: document.getElementById('playerMoves'),
+      bfsExplored: document.getElementById('bfsExplored'),
+      dfsExplored: document.getElementById('dfsExplored'),
+      routePlayer: document.getElementById('routePlayer'),
+      routeOptimal: document.getElementById('routeOptimal'),
+      routeBfs: document.getElementById('routeBfs'),
+      routeDfs: document.getElementById('routeDfs'),
+      winModal: document.getElementById('winModal'),
+      winModalDesc: document.getElementById('winModalDesc'),
+      closeWinModalBtn: document.getElementById('closeWinModalBtn'),
+      retryWinModalBtn: document.getElementById('retryWinModalBtn'),
+    };
+
+    const SETTINGS = {
+      9: { label: 'Fácil', rows: 9, cols: 9, extraLinks: 0.05, cellSize: 31 },
+      13: { label: 'Media', rows: 13, cols: 13, extraLinks: 0.08, cellSize: 28 },
+      17: { label: 'Difícil', rows: 17, cols: 17, extraLinks: 0.12, cellSize: 25 },
+    };
+
+    const STATE = {
+      screen: 'home',
+      mode: 'manual',
+      gridSize: 13,
+      algorithm: 'bfs',
+      speed: 300,
+      rows: 13,
+      cols: 13,
+      graph: new Map(),
+      player: '0,0',
+      start: '0,0',
+      goal: '12,12',
+      playerMoves: 0,
+      playerTime: 0,
+      playerWon: false,
+      gameResolved: false,
+      playerPath: [],
+      auto: null,
+      timer: null,
+      currentPath: [],
+      shortestPath: [],
+      exploredBfs: 0,
+      exploredDfs: 0,
+      visitedDuringAuto: new Set(),
+      queuedDuringAuto: new Set(),
+      cells: [],
+      cellSize: 28,
+      padding: 20,
+      mazeWidth: 0,
+      mazeHeight: 0,
+      clockInterval: null,
+      particles: [],
+      bgWidth: 0,
+      bgHeight: 0,
+    };
+
+    function keyOf(row, col) { return `${row},${col}`; }
+    function parseKey(key) { return key.split(',').map(Number); }
+    function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+    function formatTime(seconds) { return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`; }
+    function shuffle(values) {
+      const items = values.slice();
+      for (let i = items.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+      }
+      return items;
+    }
+    function log(message, type = 'normal') {
+      const color = type === 'bfs' ? 'text-neonBlue' : type === 'dfs' ? 'text-neonPurple' : type === 'success' ? 'text-neonGreen' : type === 'error' ? 'text-rose-400' : 'text-slate-300';
+      const line = document.createElement('div');
+      line.className = `console-line ${color}`;
+      line.textContent = `> ${message}`;
+      elements.console.appendChild(line);
+      elements.console.scrollTop = elements.console.scrollHeight;
+    }
+    function clearConsole() {
+      elements.console.innerHTML = '<div class="console-line text-slate-500">> Consola vaciada.</div>';
+    }
+    function showScreen(name) {
+      elements.setupScreen.classList.toggle('active', name === 'setup');
+      elements.gameScreen.classList.toggle('active', name === 'game');
+    }
+    function createEmptyGraph(rows, cols) {
+      const graph = new Map();
+      for (let row = 0; row < rows; row += 1) {
+        for (let col = 0; col < cols; col += 1) graph.set(keyOf(row, col), new Set());
+      }
+      return graph;
+    }
+    function connect(graph, a, b) { graph.get(a).add(b); graph.get(b).add(a); }
+    function generatePerfectMaze(rows, cols, extraLinks) {
+      const graph = createEmptyGraph(rows, cols);
+      const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+      const stack = [[0, 0]];
+      visited[0][0] = true;
+      while (stack.length) {
+        const [row, col] = stack[stack.length - 1];
+        const neighbors = shuffle([[row - 1, col], [row + 1, col], [row, col - 1], [row, col + 1]]).filter(([nr, nc]) => nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited[nr][nc]);
+        if (!neighbors.length) { stack.pop(); continue; }
+        const [nr, nc] = neighbors[0];
+        connect(graph, keyOf(row, col), keyOf(nr, nc));
+        visited[nr][nc] = true;
+        stack.push([nr, nc]);
+      }
+      const openWalls = [];
+      for (let row = 0; row < rows; row += 1) {
+        for (let col = 0; col < cols; col += 1) {
+          const current = keyOf(row, col);
+          const options = [[row + 1, col], [row, col + 1]];
+          for (const [nr, nc] of options) {
+            if (nr >= rows || nc >= cols) continue;
+            const neighbor = keyOf(nr, nc);
+            if (!graph.get(current).has(neighbor)) openWalls.push([current, neighbor]);
+          }
+        }
+      }
+      const extraCount = Math.floor(openWalls.length * extraLinks);
+      for (const [a, b] of shuffle(openWalls).slice(0, extraCount)) connect(graph, a, b);
+      return graph;
+    }
+    function buildTraversal(graph, start, goal, algorithm) {
+      const visited = new Set([start]);
+      const parent = new Map();
+      const order = [];
+      const frontier = [start];
+      while (frontier.length) {
+        const current = algorithm === 'bfs' ? frontier.shift() : frontier.pop();
+        order.push(current);
+        if (current === goal) break;
+        const neighbors = Array.from(graph.get(current) || []).sort();
+        const ordered = algorithm === 'bfs' ? neighbors : neighbors.reverse();
+        for (const neighbor of ordered) {
+          if (visited.has(neighbor)) continue;
+          visited.add(neighbor);
+          parent.set(neighbor, current);
+          frontier.push(neighbor);
+        }
+      }
+      const path = [];
+      let cursor = goal;
+      if (!parent.has(goal) && goal !== start) return { order, path, parent, found: false };
+      while (cursor) {
+        path.push(cursor);
+        if (cursor === start) break;
+        cursor = parent.get(cursor);
+      }
+      return { order, path: path.reverse(), parent, found: true };
+    }
+    function getCellCenter(row, col) {
+      const x = STATE.padding + col * STATE.cellSize + STATE.cellSize / 2;
+      const y = STATE.padding + row * STATE.cellSize + STATE.cellSize / 2;
+      return { x, y };
+    }
+    function updateHeaderState() {
+      elements.modeIndicator.textContent = STATE.mode === 'manual' ? 'Modo Jugador' : 'Modo Algoritmo';
+      elements.modeIndicatorDot.className = `w-3.5 h-3.5 rounded-full ${STATE.mode === 'manual' ? 'bg-neonGreen' : 'bg-neonBlue'} animate-pulse`;
+    }
+    function updateMetrics() {
+      elements.playerMoves.textContent = String(STATE.playerMoves);
+      elements.bfsExplored.textContent = STATE.graph.size ? String(STATE.exploredBfs) : '-';
+      elements.dfsExplored.textContent = STATE.graph.size ? String(STATE.exploredDfs) : '-';
+       elements.routePlayer.textContent = `${Math.max(STATE.playerPath.length - 1, 0)} pasos`;
+       elements.routeOptimal.textContent = STATE.shortestPath.length ? `${Math.max(STATE.shortestPath.length - 1, 0)} pasos` : '-';
+       elements.routeBfs.textContent = STATE.shortestPath.length ? `${Math.max(STATE.shortestPath.length - 1, 0)} pasos` : '-';
+       elements.routeDfs.textContent = STATE.shortestPath.length ? `${Math.max(STATE.shortestPath.length - 1, 0)} pasos` : '-';
+      elements.speedValue.textContent = `${STATE.speed}ms`;
+      elements.mazeMeta.textContent = STATE.graph.size ? `${STATE.rows} x ${STATE.cols} nodos · ${Math.round(Array.from(STATE.graph.values()).reduce((sum, set) => sum + set.size, 0) / 2)} conexiones · grafo conexo no dirigido.` : 'Genera un laberinto para comenzar.';
+    }
+    function lockGameControls(locked) {
+      const controls = [
+        elements.newMazeBtn,
+        elements.startSimBtn,
+        elements.pauseSimBtn,
+        elements.togglePlayerBtn,
+        elements.modeManualBtn,
+        elements.modeAlgoBtn,
+        elements.algorithmSelect,
+        elements.speedSlider,
+        ...document.querySelectorAll('[data-move]'),
+        ...document.querySelectorAll('.size-btn'),
+      ];
+      controls.forEach((control) => {
+        if (!control) return;
+        control.disabled = locked;
+        control.classList.toggle('opacity-40', locked);
+        control.classList.toggle('pointer-events-none', locked);
+      });
+    }
+    function updateStructureVisual(data, algorithm) {
+      elements.structureVisual.innerHTML = '';
+      if (!data.length) {
+        elements.structureVisual.innerHTML = '<div class="text-slate-500 text-xs font-mono italic mx-auto">La estructura está vacía</div>';
+        elements.structureCount.textContent = 'Vacío';
+        return;
+      }
+      elements.structureCount.textContent = `${data.length} en espera`;
+      data.forEach((node, index) => {
+        const chip = document.createElement('div');
+        chip.className = `flex-shrink-0 min-w-[56px] px-3 py-2 rounded-xl border text-xs font-mono font-bold flex flex-col items-center justify-center ${algorithm === 'bfs' ? 'border-neonBlue/60 text-neonBlue bg-neonBlue/10' : 'border-neonPurple/60 text-neonPurple bg-neonPurple/10'}`;
+        chip.innerHTML = `<span>[${index}]</span><span class="text-slate-200 mt-1">${node}</span>`;
+        elements.structureVisual.appendChild(chip);
+      });
+    }
+    function drawBackground() {
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(window.innerWidth * ratio);
+      canvas.height = Math.floor(window.innerHeight * ratio);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      STATE.bgWidth = window.innerWidth;
+      STATE.bgHeight = window.innerHeight;
+      if (!STATE.particles.length) {
+        STATE.particles = Array.from({ length: 46 }, () => ({
+          x: Math.random() * STATE.bgWidth,
+          y: Math.random() * STATE.bgHeight,
+          vx: (Math.random() - 0.5) * 0.45,
+          vy: (Math.random() - 0.5) * 0.45,
+          r: Math.random() * 2 + 1.2,
+        }));
+      }
+    }
+    function animateBackground() {
+      ctx.clearRect(0, 0, STATE.bgWidth, STATE.bgHeight);
+      const width = STATE.bgWidth;
+      const height = STATE.bgHeight;
+      const gradient = ctx.createLinearGradient(0, 0, width, height);
+      gradient.addColorStop(0, '#050b14');
+      gradient.addColorStop(1, '#081220');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+      ctx.lineWidth = 1;
+      for (let i = 0; i < STATE.particles.length; i += 1) {
+        const p = STATE.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0 || p.x > width) p.vx *= -1;
+        if (p.y < 0 || p.y > height) p.vy *= -1;
+        for (let j = i + 1; j < STATE.particles.length; j += 1) {
+          const q = STATE.particles[j];
+          const dist = Math.hypot(p.x - q.x, p.y - q.y);
+          if (dist < 150) {
+            ctx.strokeStyle = `rgba(6, 182, 212, ${0.08 * (1 - dist / 150)})`;
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(q.x, q.y);
+            ctx.stroke();
+          }
+        }
+        ctx.beginPath();
+        ctx.fillStyle = '#06b6d4';
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      requestAnimationFrame(animateBackground);
+    }
+    function resizeMazeCanvas() {
+      const parent = elements.mazeCanvas.parentElement;
+      const ratio = window.devicePixelRatio || 1;
+      const isSmallScreen = window.innerWidth <= 640;
+      const availableWidth = isSmallScreen ? window.innerWidth - 24 : parent.clientWidth - 24;
+      const width = Math.max(isSmallScreen ? 260 : 420, Math.min(availableWidth, parent.clientWidth - (isSmallScreen ? 12 : 24)));
+      const height = Math.max(isSmallScreen ? 180 : 380, Math.min(window.innerHeight * (isSmallScreen ? 0.34 : 0.62), isSmallScreen ? 260 : 760));
+      elements.mazeCanvas.width = Math.floor(width * ratio);
+      elements.mazeCanvas.height = Math.floor(height * ratio);
+      elements.mazeCanvas.style.width = `${width}px`;
+      elements.mazeCanvas.style.height = `${height}px`;
+      STATE.mazeWidth = width;
+      STATE.mazeHeight = height;
+      STATE.padding = isSmallScreen ? 12 : 28;
+      const innerW = Math.max(100, width - STATE.padding * 2);
+      const innerH = Math.max(100, height - STATE.padding * 2);
+      STATE.cellSize = Math.max(isSmallScreen ? 10 : 18, Math.floor(Math.min(innerW / Math.max(STATE.cols, 1), innerH / Math.max(STATE.rows, 1))));
+    }
+    function mazeCtx() {
+      return elements.mazeCanvas.getContext('2d');
+    }
+    function drawMaze() {
+      if (!STATE.rows || !STATE.cols) return;
+      resizeMazeCanvas();
+      const context = mazeCtx();
+      const ratio = window.devicePixelRatio || 1;
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.clearRect(0, 0, STATE.mazeWidth, STATE.mazeHeight);
+      const bgGradient = context.createLinearGradient(0, 0, STATE.mazeWidth, STATE.mazeHeight);
+      bgGradient.addColorStop(0, 'rgba(5, 10, 19, 0.95)');
+      bgGradient.addColorStop(1, 'rgba(2, 6, 14, 0.98)');
+      context.fillStyle = bgGradient;
+      context.fillRect(0, 0, STATE.mazeWidth, STATE.mazeHeight);
+
+      const visitedSet = STATE.auto?.visited || new Set();
+      const queuedSet = new Set(STATE.auto?.frontier || []);
+      const currentNode = STATE.auto?.current || null;
+      const optimalPathSet = STATE.playerWon ? new Set(STATE.shortestPath) : new Set(STATE.currentPath);
+      const playerPathSet = new Set(STATE.playerPath);
+
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+
+      for (const [node, neighbors] of STATE.graph.entries()) {
+        const [row, col] = parseKey(node);
+        const origin = getCellCenter(row, col);
+        for (const neighbor of neighbors) {
+          if (node > neighbor) continue;
+          const [nr, nc] = parseKey(neighbor);
+          const target = getCellCenter(nr, nc);
+          context.save();
+          context.shadowColor = 'rgba(103, 209, 255, 0.28)';
+          context.shadowBlur = 22;
+          context.strokeStyle = 'rgba(226, 232, 240, 0.42)';
+          context.lineWidth = Math.max(6, STATE.cellSize * 0.14);
+          context.beginPath();
+          context.moveTo(origin.x, origin.y);
+          context.lineTo(target.x, target.y);
+          context.stroke();
+
+          context.shadowColor = 'rgba(103, 209, 255, 0.55)';
+          context.shadowBlur = 28;
+          context.strokeStyle = 'rgba(56, 189, 248, 0.88)';
+          context.lineWidth = Math.max(3.5, STATE.cellSize * 0.08);
+          context.beginPath();
+          context.moveTo(origin.x, origin.y);
+          context.lineTo(target.x, target.y);
+          context.stroke();
+          context.restore();
+        }
+      }
+
+      for (let row = 0; row < STATE.rows; row += 1) {
+        for (let col = 0; col < STATE.cols; col += 1) {
+          const key = keyOf(row, col);
+          if (!STATE.graph.has(key)) continue;
+          const center = getCellCenter(row, col);
+          const onOptimalPath = optimalPathSet.has(key);
+           const onPlayerPath = playerPathSet.has(key) && STATE.mode === 'manual';
+          const isQueued = queuedSet.has(key);
+          const isVisited = visitedSet.has(key);
+          const isCurrent = currentNode === key;
+          const isStart = key === STATE.start;
+          const isGoal = key === STATE.goal;
+          const isPlayer = key === STATE.player && STATE.mode === 'manual';
+
+          let fill = 'rgba(180, 210, 240, 0.22)';
+          let stroke = 'rgba(148, 163, 184, 0.2)';
+          let glow = 'rgba(0,0,0,0)';
+
+          if (onOptimalPath && STATE.playerWon) { fill = '#fb7185'; stroke = '#fecdd3'; glow = 'rgba(251, 113, 133, 0.58)'; }
+          else if (onPlayerPath) { fill = '#fb923c'; stroke = '#fdba74'; glow = 'rgba(251, 146, 60, 0.38)'; }
+          else if (isCurrent || isPlayer) { fill = '#67d1ff'; stroke = '#cffafe'; glow = 'rgba(103, 209, 255, 0.55)'; }
+          else if (isQueued) { fill = '#3b82f6'; stroke = '#93c5fd'; glow = 'rgba(59, 130, 246, 0.4)'; }
+          else if (isVisited) { fill = '#8b5cf6'; stroke = '#c4b5fd'; glow = 'rgba(139, 92, 246, 0.4)'; }
+          if (isStart) { fill = '#10b981'; stroke = '#6ee7b7'; glow = 'rgba(16, 185, 129, 0.5)'; }
+          if (isGoal) { fill = '#06b6d4'; stroke = '#67e8f9'; glow = 'rgba(6, 182, 212, 0.5)'; }
+
+          context.save();
+          context.shadowColor = glow;
+          context.shadowBlur = 18;
+          context.fillStyle = fill;
+          context.strokeStyle = stroke;
+          context.lineWidth = Math.max(2, STATE.cellSize * 0.06);
+          context.beginPath();
+          context.arc(center.x, center.y, Math.max(7, STATE.cellSize * 0.18), 0, Math.PI * 2);
+          context.fill();
+          context.stroke();
+          context.restore();
+
+          if (isPlayer && !isStart) {
+            context.save();
+            context.shadowColor = 'rgba(103, 209, 255, 0.65)';
+            context.shadowBlur = 20;
+            context.fillStyle = '#0f172a';
+            context.beginPath();
+            context.arc(center.x, center.y, Math.max(3, STATE.cellSize * 0.08), 0, Math.PI * 2);
+            context.fill();
+            context.restore();
+          }
+
+          if (isStart || isGoal) {
+            context.fillStyle = '#03111c';
+            context.font = `700 ${Math.max(10, Math.floor(STATE.cellSize * 0.28))}px Fira Code, monospace`;
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(isStart ? 'S' : 'E', center.x, center.y + 0.5);
+          }
+        }
+      }
+
+      function drawPathPolyline(path, strokeStyle, lineWidth, dashed = false) {
+        if (!path || path.length < 2) return;
+        context.save();
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.strokeStyle = strokeStyle;
+        context.lineWidth = lineWidth;
+        context.shadowColor = strokeStyle;
+        context.shadowBlur = 24;
+        context.setLineDash(dashed ? [10, 8] : []);
+        context.beginPath();
+        for (let index = 0; index < path.length; index += 1) {
+          const [row, col] = parseKey(path[index]);
+          const point = getCellCenter(row, col);
+          if (index === 0) context.moveTo(point.x, point.y);
+          else context.lineTo(point.x, point.y);
+        }
+        context.stroke();
+        context.restore();
+      }
+
+      drawPathPolyline(STATE.playerPath, 'rgba(251, 146, 60, 0.95)', Math.max(4, STATE.cellSize * 0.12));
+      if (STATE.playerWon) {
+        drawPathPolyline(STATE.shortestPath, 'rgba(251, 113, 133, 0.95)', Math.max(6, STATE.cellSize * 0.15), true);
+      }
+
+      updateMetrics();
+    }
+    function setManualMode() {
+      if (STATE.gameResolved) return;
+      STATE.mode = 'manual';
+      elements.modeManualBtn.className = 'mode-btn py-2 rounded-lg bg-neonGreen/20 border border-neonGreen/40 text-neonGreen font-semibold text-xs font-orbitron tracking-wide uppercase';
+      elements.modeAlgoBtn.className = 'mode-btn py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-orbitron tracking-wide uppercase';
+      updateHeaderState();
+      stopSimulation();
+      log('Modo Jugador activado.', 'normal');
+    }
+    function setAlgorithmMode() {
+      if (STATE.gameResolved) return;
+      STATE.mode = 'algorithm';
+      elements.modeAlgoBtn.className = 'mode-btn py-2 rounded-lg bg-neonBlue/20 border border-neonBlue/40 text-neonBlue font-semibold text-xs font-orbitron tracking-wide uppercase';
+      elements.modeManualBtn.className = 'mode-btn py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-orbitron tracking-wide uppercase';
+      updateHeaderState();
+      log('Modo Algoritmo activado.', 'normal');
+    }
+    function stopSimulation() {
+      if (STATE.timer) clearInterval(STATE.timer);
+      STATE.timer = null;
+      STATE.auto = null;
+      updateStructureVisual([], STATE.algorithm);
+      drawMaze();
+    }
+    function generateMaze() {
+      const cfg = SETTINGS[STATE.gridSize];
+      STATE.rows = cfg.rows;
+      STATE.cols = cfg.cols;
+      STATE.start = keyOf(0, 0);
+      STATE.goal = keyOf(STATE.rows - 1, STATE.cols - 1);
+      STATE.graph = generatePerfectMaze(STATE.rows, STATE.cols, cfg.extraLinks);
+      STATE.player = STATE.start;
+      STATE.playerMoves = 0;
+      STATE.playerTime = 0;
+      STATE.playerWon = false;
+      STATE.gameResolved = false;
+      STATE.playerPath = [STATE.start];
+      STATE.currentPath = [];
+      STATE.shortestPath = buildTraversal(STATE.graph, STATE.start, STATE.goal, 'bfs').path;
+      STATE.exploredBfs = buildTraversal(STATE.graph, STATE.start, STATE.goal, 'bfs').order.length;
+      STATE.exploredDfs = buildTraversal(STATE.graph, STATE.start, STATE.goal, 'dfs').order.length;
+      STATE.auto = null;
+      clearConsole();
+      log(`Laberinto ${cfg.label} generado como grafo conexo.`, 'success');
+      log(`Ruta óptima BFS calculada: ${STATE.shortestPath.length} nodos.`, 'bfs');
+      updateHeaderState();
+      updateMetrics();
+      drawMaze();
+      lockGameControls(false);
+      setManualMode();
+    }
+    function openWinModal(message) {
+      elements.winModalDesc.textContent = message;
+      elements.winModal.classList.remove('hidden');
+      STATE.gameResolved = true;
+      lockGameControls(true);
+    }
+    function closeWinModal() { elements.winModal.classList.add('hidden'); }
+    function handlePlayerMove(deltaRow, deltaCol) {
+      if (STATE.gameResolved || STATE.mode !== 'manual' || !STATE.graph.size || STATE.auto) return;
+      const [row, col] = parseKey(STATE.player);
+      const next = keyOf(row + deltaRow, col + deltaCol);
+      const neighbors = STATE.graph.get(STATE.player);
+      if (!neighbors || !neighbors.has(next)) { log('Movimiento inválido: no existe una arista hacia esa celda.', 'error'); return; }
+      STATE.player = next;
+      STATE.playerMoves += 1;
+      STATE.playerTime += 1;
+       STATE.playerPath.push(next);
+      log(`Jugador se movió a ${next}.`, 'normal');
+      if (STATE.player === STATE.goal) {
+        STATE.playerWon = true;
+        updateMetrics();
+        drawMaze();
+        openWinModal(`Tu ruta tuvo ${STATE.playerMoves} movimientos. La ruta óptima tiene ${Math.max(STATE.shortestPath.length - 1, 0)} movimientos.`);
+      }
+      updateMetrics();
+      drawMaze();
+    }
+    function buildPathFromParents(parent, start, goal) {
+      const path = [];
+      let cursor = goal;
+      while (cursor) {
+        path.push(cursor);
+        if (cursor === start) break;
+        cursor = parent.get(cursor);
+      }
+      return path.reverse();
+    }
+    async function runSimulationStep() {
+      if (!STATE.auto) return;
+      const state = STATE.auto;
+      if (state.phase === 'search') {
+        if (!state.frontier.length) {
+          log(`La ${state.algorithm === 'bfs' ? 'cola' : 'pila'} quedó vacía sin encontrar salida.`, 'error');
+          stopSimulation();
+          return;
+        }
+        const current = state.algorithm === 'bfs' ? state.frontier.shift() : state.frontier.pop();
+        state.current = current;
+        state.visited.add(current);
+        state.frontierSet = new Set(state.frontier);
+        log(`${state.algorithm.toUpperCase()} -> extrae ${current}.`, state.algorithm);
+        const neighbors = Array.from(STATE.graph.get(current) || []).sort();
+        const ordered = state.algorithm === 'bfs' ? neighbors : neighbors.reverse();
+        for (const neighbor of ordered) {
+          if (state.visited.has(neighbor) || state.enqueued.has(neighbor)) continue;
+          state.parent.set(neighbor, current);
+          state.enqueued.add(neighbor);
+          state.frontier.push(neighbor);
+          log(`  encola ${neighbor} desde ${current}.`, state.algorithm);
+        }
+        if (current === STATE.goal) {
+          state.phase = 'path';
+          state.path = buildPathFromParents(state.parent, STATE.start, STATE.goal);
+          STATE.currentPath = state.path.slice();
+          if (state.algorithm === 'bfs') STATE.exploredBfs = state.visited.size; else STATE.exploredDfs = state.visited.size;
+          log(`Ruta final encontrada con ${state.path.length} nodos.`, 'success');
+          openWinModal(`El algoritmo ${state.algorithm.toUpperCase()} resolvió el laberinto usando ${state.visited.size} nodos explorados.`);
+          drawMaze();
+          return;
+        }
+        STATE.currentPath = [];
+        if (state.algorithm === 'bfs') STATE.exploredBfs = state.visited.size; else STATE.exploredDfs = state.visited.size;
+        updateStructureVisual(state.frontier, state.algorithm);
+        drawMaze();
+      } else if (state.phase === 'path') {
+        if (!state.pathShown) state.pathShown = 0;
+        state.pathShown += 1;
+        STATE.currentPath = state.path.slice(0, state.pathShown);
+        if (state.algorithm === 'bfs') STATE.exploredBfs = state.visited.size; else STATE.exploredDfs = state.visited.size;
+        if (state.pathShown >= state.path.length) {
+          stopSimulation();
+          STATE.auto = null;
+          updateMetrics();
+          drawMaze();
+          return;
+        }
+        drawMaze();
+      }
+      updateMetrics();
+    }
+    function startSimulation() {
+      if (STATE.gameResolved) return;
+      if (!STATE.graph.size) generateMaze();
+      stopSimulation();
+      const algorithm = elements.algorithmSelect.value;
+      STATE.algorithm = algorithm;
+      STATE.auto = {
+        algorithm,
+        phase: 'search',
+        frontier: [STATE.start],
+        frontierSet: new Set([STATE.start]),
+        visited: new Set([STATE.start]),
+        enqueued: new Set([STATE.start]),
+        parent: new Map(),
+        current: STATE.start,
+        path: [],
+        pathShown: 0,
+      };
+      STATE.mode = 'algorithm';
+      updateHeaderState();
+      const headline = algorithm === 'bfs' ? 'BFS recorre por niveles usando una cola FIFO.' : 'DFS profundiza por ramas usando una pila LIFO.';
+      log(`Iniciando simulación ${algorithm.toUpperCase()}. ${headline}`, algorithm);
+      updateStructureVisual(STATE.auto.frontier, algorithm);
+      drawMaze();
+      STATE.timer = setInterval(runSimulationStep, STATE.speed);
+    }
+    function pauseSimulation() {
+      if (STATE.timer) { clearInterval(STATE.timer); STATE.timer = null; log('Simulación pausada.', 'normal'); }
+    }
+    function clearAndGenerate() { stopSimulation(); generateMaze(); }
+    function setGridSize(size) {
+      STATE.gridSize = size;
+      document.querySelectorAll('.size-btn').forEach((btn) => {
+        const active = Number(btn.dataset.size) === size;
+        btn.className = `size-btn py-2 rounded-lg border text-sm font-mono transition ${active ? 'bg-neonBlue/20 border-neonBlue/40 text-neonBlue font-semibold' : 'bg-slate-900 hover:bg-slate-800 border-slate-700'}`;
+      });
+    }
+    function bindEvents() {
+      elements.setupHomeBtn.addEventListener('click', () => { window.location.href = 'home.html'; });
+      elements.setupTheoryBtn.addEventListener('click', () => { window.location.href = 'theory.html'; });
+      elements.backToSetupBtn.addEventListener('click', () => { stopSimulation(); showScreen('setup'); });
+      elements.newMazeBtn.addEventListener('click', () => { stopSimulation(); showScreen('setup'); });
+      elements.backTheoryFromGame.addEventListener('click', () => { window.location.href = 'theory.html'; });
+      elements.generateMazeBtn.addEventListener('click', () => { showScreen('game'); clearAndGenerate(); });
+      elements.startSimBtn.addEventListener('click', startSimulation);
+      elements.pauseSimBtn.addEventListener('click', pauseSimulation);
+      elements.togglePlayerBtn.addEventListener('click', () => STATE.mode === 'manual' ? setAlgorithmMode() : setManualMode());
+      elements.modeManualBtn.addEventListener('click', setManualMode);
+      elements.modeAlgoBtn.addEventListener('click', setAlgorithmMode);
+      document.querySelectorAll('[data-move]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const moveMap = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
+          const move = moveMap[button.dataset.move];
+          if (!move) return;
+          handlePlayerMove(move[0], move[1]);
+        });
+      });
+      elements.algorithmSelect.addEventListener('change', () => { STATE.algorithm = elements.algorithmSelect.value; if (STATE.auto) { pauseSimulation(); stopSimulation(); } drawMaze(); });
+      elements.speedSlider.addEventListener('input', (event) => { STATE.speed = Number(event.target.value); elements.speedValue.textContent = `${STATE.speed}ms`; if (STATE.timer) { pauseSimulation(); startSimulation(); } });
+      elements.clearConsoleBtn.addEventListener('click', clearConsole);
+      elements.closeWinModalBtn.addEventListener('click', closeWinModal);
+      elements.retryWinModalBtn.addEventListener('click', () => { closeWinModal(); clearAndGenerate(); });
+      document.querySelectorAll('.size-btn').forEach((btn) => btn.addEventListener('click', () => setGridSize(Number(btn.dataset.size))));
+      window.addEventListener('keydown', (event) => {
+        if (STATE.gameResolved) return;
+        const keyMap = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+        if (event.key in keyMap) { event.preventDefault(); const [dr, dc] = keyMap[event.key]; handlePlayerMove(dr, dc); }
+        if (event.key === ' ') { event.preventDefault(); if (!STATE.auto) startSimulation(); else runSimulationStep(); }
+      });
+      window.addEventListener('resize', () => { drawBackground(); drawMaze(); });
+    }
+
+    elements.speedValue.textContent = `${STATE.speed}ms`;
+    bindEvents();
+    drawBackground();
+    animateBackground();
+    clearConsole();
+    log('Configura el laberinto y genera para pasar a la pantalla de juego.', 'normal');
+    updateHeaderState();
+    updateMetrics();
+    setGridSize(13);
+    showScreen('setup');
+  </script>
+</body>
+</html>

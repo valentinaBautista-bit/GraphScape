@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graph Scape - Inicio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Orbitron:wght@500;700;900&family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared.css" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['Fira Code', 'monospace'],
+            orbitron: ['Orbitron', 'sans-serif'],
+          },
+          colors: {
+            darkBg: '#07111f',
+            neonGreen: '#10b981',
+            neonBlue: '#06b6d4',
+            neonPurple: '#8b5cf6',
+            neonGold: '#f59e0b'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="bg-canvas" class="fixed inset-0 pointer-events-none z-0 opacity-40"></canvas>
+  <main class="relative z-10 min-h-screen flex items-center justify-center px-4 py-10">
+    <div class="max-w-5xl w-full text-center">
+      <div class="flex justify-center mb-8">
+        <div class="relative w-28 h-28 flex items-center justify-center">
+          <div class="absolute w-4 h-4 rounded-full bg-neonBlue top-2 left-2 animate-pulse"></div>
+          <div class="absolute w-4 h-4 rounded-full bg-neonGreen bottom-2 right-2 animate-pulse"></div>
+          <div class="absolute w-4 h-4 rounded-full bg-neonPurple top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+          <svg class="absolute w-full h-full" stroke="#1e293b" stroke-width="2">
+            <line x1="16" y1="16" x2="48" y2="48"></line>
+            <line x1="48" y1="48" x2="80" y2="80"></line>
+            <line x1="16" y1="16" x2="80" y2="80" stroke-dasharray="4 4"></line>
+          </svg>
+          <i class="fa-solid fa-network-wired text-5xl text-neonBlue z-10"></i>
+        </div>
+      </div>
+      <p class="font-mono tracking-[0.3em] text-neonBlue uppercase text-xs sm:text-sm mb-4">&lt; Laberintos Inteligentes y Teoría de Grafos &gt;</p>
+      <h1 class="font-orbitron text-6xl sm:text-7xl lg:text-8xl font-black uppercase bg-gradient-to-r from-neonBlue via-neonPurple to-neonGreen bg-clip-text text-transparent neon-title">GRAPH SCAPE</h1>
+      <p class="mt-6 mx-auto max-w-3xl text-slate-300 text-lg sm:text-xl leading-relaxed">
+        Controla un avatar, explora un laberinto generado como grafo y observa en tiempo real cómo BFS y DFS recorren nodos, aristas y rutas óptimas.
+      </p>
+      <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="home.html" class="px-8 py-4 rounded-xl font-orbitron font-bold bg-gradient-to-r from-neonBlue to-neonPurple text-slate-950 hover:brightness-110 transition flex items-center justify-center gap-3">
+          <i class="fa-solid fa-gamepad"></i> Iniciar Juego
+        </a>
+        <a href="theory.html" class="px-8 py-4 rounded-xl font-orbitron font-semibold border border-slate-700 bg-slate-900/70 hover:bg-slate-800 transition flex items-center justify-center gap-3">
+          <i class="fa-solid fa-book-open"></i> Instrucciones & Teoría
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('bg-canvas');
+    const context = canvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      if (!particles.length) {
+        particles = Array.from({ length: 42 }, () => ({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 0.45,
+          vy: (Math.random() - 0.5) * 0.45,
+          r: Math.random() * 2 + 1.2,
+        }));
+      }
+    }
+
+    function animate() {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, '#050b14');
+      gradient.addColorStop(1, '#081220');
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      for (let i = 0; i < particles.length; i += 1) {
+        const particle = particles[i];
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        if (particle.x < 0 || particle.x > canvas.width) particle.vx *= -1;
+        if (particle.y < 0 || particle.y > canvas.height) particle.vy *= -1;
+        for (let j = i + 1; j < particles.length; j += 1) {
+          const other = particles[j];
+          const distance = Math.hypot(particle.x - other.x, particle.y - other.y);
+          if (distance < 150) {
+            context.strokeStyle = `rgba(6, 182, 212, ${0.08 * (1 - distance / 150)})`;
+            context.beginPath();
+            context.moveTo(particle.x, particle.y);
+            context.lineTo(other.x, other.y);
+            context.stroke();
+          }
+        }
+        context.beginPath();
+        context.fillStyle = '#06b6d4';
+        context.arc(particle.x, particle.y, particle.r, 0, Math.PI * 2);
+        context.fill();
+      }
+      requestAnimationFrame(animate);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    animate();
+  </script>
+</body>
+</html>

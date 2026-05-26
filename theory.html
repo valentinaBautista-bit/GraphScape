@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graph Scape - Teoría</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Orbitron:wght@500;700;900&family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared.css" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['Fira Code', 'monospace'],
+            orbitron: ['Orbitron', 'sans-serif'],
+          },
+          colors: {
+            darkBg: '#07111f',
+            neonGreen: '#10b981',
+            neonBlue: '#06b6d4',
+            neonPurple: '#8b5cf6',
+            neonGold: '#f59e0b'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="bg-canvas" class="fixed inset-0 pointer-events-none z-0 opacity-35"></canvas>
+  <main class="relative z-10 min-h-screen px-4 py-8 sm:py-12">
+    <div class="max-w-7xl mx-auto">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+        <div>
+          <p class="font-mono tracking-[0.25em] text-neonBlue uppercase text-xs mb-2">Biblioteca de Grafos</p>
+          <h1 class="font-orbitron text-3xl sm:text-4xl font-bold">Teoría didáctica e interacción visual</h1>
+          <p class="text-slate-400 mt-2 max-w-3xl">Entiende qué es un grafo, cómo BFS usa una cola FIFO y cómo DFS usa una pila LIFO para explorar el laberinto.</p>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+          <a href="home.html" class="px-5 py-3 rounded-xl border border-slate-700 bg-slate-900/80 hover:bg-slate-800 transition font-orbitron text-sm"><i class="fa-solid fa-arrow-left mr-2"></i>Volver al inicio</a>
+          <a href="index.html" class="px-5 py-3 rounded-xl bg-neonBlue text-slate-950 hover:brightness-110 transition font-orbitron text-sm font-bold"><i class="fa-solid fa-play mr-2"></i>Ir al juego</a>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <article class="glass rounded-3xl p-6">
+          <div class="w-12 h-12 rounded-2xl bg-neonBlue/10 border border-neonBlue/20 flex items-center justify-center mb-4"><i class="fa-solid fa-circle-nodes text-neonBlue text-xl"></i></div>
+          <h2 class="font-orbitron text-xl font-bold mb-3">¿Qué es un grafo?</h2>
+          <p class="text-slate-400 leading-relaxed">Un grafo es una estructura formada por nodos y aristas. En Graph Scape, cada celda caminable es un nodo y cada conexión válida entre celdas es una arista. El tablero se interpreta como un grafo no dirigido y conexo.</p>
+          <div class="mt-4 rounded-2xl bg-slate-950/60 border border-slate-800 p-4 text-xs font-mono text-slate-300">
+            Nodos = posiciones del laberinto<br>
+            Aristas = pasos posibles entre nodos
+          </div>
+        </article>
+
+        <article class="glass rounded-3xl p-6">
+          <div class="w-12 h-12 rounded-2xl bg-neonGreen/10 border border-neonGreen/20 flex items-center justify-center mb-4"><i class="fa-solid fa-layer-group text-neonGreen text-xl"></i></div>
+          <h2 class="font-orbitron text-xl font-bold mb-3 text-neonGreen">BFS y Cola FIFO</h2>
+          <p class="text-slate-400 leading-relaxed">BFS visita primero los vecinos inmediatos y después avanza por niveles. Usa una cola, donde el primer nodo en entrar es el primero en salir. En grafos no ponderados, BFS encuentra la ruta más corta en número de pasos.</p>
+          <div class="mt-4 rounded-2xl bg-slate-950/60 border border-slate-800 p-4 text-xs font-mono text-slate-300">
+            FIFO = First In, First Out<br>
+            Ideal para minimizar pasos
+          </div>
+        </article>
+
+        <article class="glass rounded-3xl p-6">
+          <div class="w-12 h-12 rounded-2xl bg-neonPurple/10 border border-neonPurple/20 flex items-center justify-center mb-4"><i class="fa-solid fa-turn-down text-neonPurple text-xl"></i></div>
+          <h2 class="font-orbitron text-xl font-bold mb-3 text-neonPurple">DFS y Pila LIFO</h2>
+          <p class="text-slate-400 leading-relaxed">DFS desciende por una rama tanto como puede y luego retrocede. Usa una pila, donde el último en entrar es el primero en salir. Es útil para explorar profundidad rápidamente, pero no garantiza el camino óptimo.</p>
+          <div class="mt-4 rounded-2xl bg-slate-950/60 border border-slate-800 p-4 text-xs font-mono text-slate-300">
+            LIFO = Last In, First Out<br>
+            Ideal para exploración profunda
+          </div>
+        </article>
+      </div>
+
+      <div class="mt-5 glass rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div>
+          <h3 class="font-orbitron text-lg font-bold text-neonGold">Representación visual en vivo</h3>
+          <p class="text-slate-400 mt-2 max-w-3xl">En la pantalla del juego los nodos cambian de color según su estado: gris no visitado, azul en cola/pila, verde actual, violeta visitado y dorado como camino final óptimo.</p>
+        </div>
+        <a href="index.html" class="px-6 py-3 rounded-xl bg-gradient-to-r from-neonBlue to-neonPurple text-slate-950 font-orbitron font-bold">Ir al tablero <i class="fa-solid fa-arrow-right ml-2"></i></a>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('bg-canvas');
+    const context = canvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      if (!particles.length) {
+        particles = Array.from({ length: 40 }, () => ({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4,
+          r: Math.random() * 2 + 1.1,
+        }));
+      }
+    }
+
+    function animate() {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, '#050b14');
+      gradient.addColorStop(1, '#081220');
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      for (let i = 0; i < particles.length; i += 1) {
+        const particle = particles[i];
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        if (particle.x < 0 || particle.x > canvas.width) particle.vx *= -1;
+        if (particle.y < 0 || particle.y > canvas.height) particle.vy *= -1;
+        for (let j = i + 1; j < particles.length; j += 1) {
+          const other = particles[j];
+          const distance = Math.hypot(particle.x - other.x, particle.y - other.y);
+          if (distance < 150) {
+            context.strokeStyle = `rgba(6, 182, 212, ${0.08 * (1 - distance / 150)})`;
+            context.beginPath();
+            context.moveTo(particle.x, particle.y);
+            context.lineTo(other.x, other.y);
+            context.stroke();
+          }
+        }
+        context.beginPath();
+        context.fillStyle = '#8b5cf6';
+        context.arc(particle.x, particle.y, particle.r, 0, Math.PI * 2);
+        context.fill();
+      }
+      requestAnimationFrame(animate);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    animate();
+  </script>
+</body>
+</html>
