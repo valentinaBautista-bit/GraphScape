@@ -224,7 +224,7 @@
                   <span class="flex items-center gap-2"><i class="legend-dot path"></i> Ruta óptima</span>
                 </div>
               </div>
-              <div class="flex-1 overflow-hidden maze-canvas-wrap p-3 sm:p-4">
+              <div class="flex-1 overflow-hidden maze-canvas-wrap p-3 sm:p-4 flex items-center justify-center">
                 <canvas id="mazeCanvas" class="maze-canvas" aria-label="Visualización del laberinto"></canvas>
               </div>
               <div class="mt-4 md:hidden">
@@ -511,7 +511,6 @@
     }
     function lockGameControls(locked) {
       const controls = [
-        elements.newMazeBtn,
         elements.startSimBtn,
         elements.pauseSimBtn,
         elements.togglePlayerBtn,
@@ -528,6 +527,9 @@
         control.classList.toggle('opacity-40', locked);
         control.classList.toggle('pointer-events-none', locked);
       });
+      elements.newMazeBtn.disabled = !locked;
+      elements.newMazeBtn.classList.toggle('opacity-40', !locked);
+      elements.newMazeBtn.classList.toggle('pointer-events-none', !locked);
     }
     function updateStructureVisual(data, algorithm) {
       elements.structureVisual.innerHTML = '';
@@ -623,11 +625,16 @@
       const ratio = window.devicePixelRatio || 1;
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
       context.clearRect(0, 0, STATE.mazeWidth, STATE.mazeHeight);
-      const bgGradient = context.createLinearGradient(0, 0, STATE.mazeWidth, STATE.mazeHeight);
+      const totalWidth = STATE.cols * STATE.cellSize + STATE.padding * 2;
+      const totalHeight = STATE.rows * STATE.cellSize + STATE.padding * 2;
+      const offsetX = Math.max(0, (STATE.mazeWidth - totalWidth) / 2);
+      const offsetY = Math.max(0, (STATE.mazeHeight - totalHeight) / 2);
+      context.translate(offsetX, offsetY);
+      const bgGradient = context.createLinearGradient(-offsetX, -offsetY, STATE.mazeWidth - offsetX, STATE.mazeHeight - offsetY);
       bgGradient.addColorStop(0, 'rgba(5, 10, 19, 0.95)');
       bgGradient.addColorStop(1, 'rgba(2, 6, 14, 0.98)');
       context.fillStyle = bgGradient;
-      context.fillRect(0, 0, STATE.mazeWidth, STATE.mazeHeight);
+      context.fillRect(-offsetX, -offsetY, STATE.mazeWidth, STATE.mazeHeight);
 
       const visitedSet = STATE.auto?.visited || new Set();
       const queuedSet = new Set(STATE.auto?.frontier || []);
@@ -791,6 +798,8 @@
       STATE.playerWon = false;
       STATE.gameResolved = false;
       STATE.playerPath = [STATE.start];
+      elements.newMazeBtn.disabled = true;
+      elements.newMazeBtn.classList.add('opacity-40', 'pointer-events-none');
       STATE.currentPath = [];
       STATE.shortestPath = buildTraversal(STATE.graph, STATE.start, STATE.goal, 'bfs').path;
       STATE.exploredBfs = buildTraversal(STATE.graph, STATE.start, STATE.goal, 'bfs').order.length;
@@ -810,6 +819,8 @@
       elements.winModal.classList.remove('hidden');
       STATE.gameResolved = true;
       lockGameControls(true);
+      elements.newMazeBtn.disabled = false;
+      elements.newMazeBtn.classList.remove('opacity-40', 'pointer-events-none');
     }
     function closeWinModal() { elements.winModal.classList.add('hidden'); }
     function handlePlayerMove(deltaRow, deltaCol) {
