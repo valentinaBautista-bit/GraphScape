@@ -933,7 +933,17 @@
       STATE.timer = setInterval(runSimulationStep, STATE.speed);
     }
     function pauseSimulation() {
-      if (STATE.timer) { clearInterval(STATE.timer); STATE.timer = null; log('Simulación pausada.', 'normal'); }
+      if (STATE.timer) {
+        clearInterval(STATE.timer);
+        STATE.timer = null;
+        log('Simulación pausada.', 'normal');
+        elements.pauseSimBtn.textContent = '';
+        elements.pauseSimBtn.innerHTML = '<i class="fa-solid fa-play"></i> Reanudar';
+      } else if (STATE.auto) {
+        log('Simulación reanudada.', 'normal');
+        elements.pauseSimBtn.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+        STATE.timer = setInterval(runSimulationStep, STATE.speed);
+      }
     }
     function clearAndGenerate() { stopSimulation(); generateMaze(); }
     function setGridSize(size) {
@@ -947,7 +957,7 @@
       elements.setupHomeBtn.addEventListener('click', () => { window.location.href = 'home.html'; });
       elements.setupTheoryBtn.addEventListener('click', () => { window.location.href = 'theory.html'; });
       elements.backToSetupBtn.addEventListener('click', () => { stopSimulation(); showScreen('setup'); });
-      elements.newMazeBtn.addEventListener('click', () => { closeWinModal(); clearAndGenerate(); });
+      elements.newMazeBtn.addEventListener('click', () => { stopSimulation(); lockGameControls(false); showScreen('setup'); });
       elements.backTheoryFromGame.addEventListener('click', () => { window.location.href = 'theory.html'; });
       elements.generateMazeBtn.addEventListener('click', () => { showScreen('game'); clearAndGenerate(); });
       elements.startSimBtn.addEventListener('click', startSimulation);
